@@ -1,0 +1,12 @@
+hw1/data/*
+hw1/data_bak/*
+hw1/rob831/agents/__pycache__/*
+hw1/rob831/infrastructure/__pycache__/*
+hw1/rob831/policies/__pycache__/*
+hw1/rob831/scripts/__pycache__/*
+*.zip
+hw1/run_logs/*
+hw1/rob831.egg-info/*
+*.png
+*.csv
+

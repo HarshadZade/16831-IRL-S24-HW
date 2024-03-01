@@ -47,7 +47,10 @@ class PGAgent(BaseAgent):
         # HINT2: look at the MLPPolicyPG class for how to update the policy
             # and obtain a train_log
 
-        raise NotImplementedError
+        # raise NotImplementedError
+        q_values = self.calculate_q_vals(rewards_list)
+        advantages = self.estimate_advantage(observations, rewards_list, q_values, terminals)
+        train_log = self.actor.update(observations, actions, advantages, q_values)
 
         return train_log
 
@@ -75,12 +78,14 @@ class PGAgent(BaseAgent):
 
         if not self.reward_to_go:
             #use the whole traj for each timestep
-            raise NotImplementedError
+            # raise NotImplementedError
+            q_values = np.concatenate([self._discounted_return(rews) for rews in rewards_list]).flatten()
 
         # Case 2: reward-to-go PG
         # Estimate Q^{pi}(s_t, a_t) by the discounted sum of rewards starting from t
         else:
-            raise NotImplementedError
+            # raise NotImplementedError
+            q_values = np.concatenate([self._discounted_cumsum(rews) for rews in rewards_list]).flatten()
 
         return q_values  # return an array
 
@@ -101,9 +106,11 @@ class PGAgent(BaseAgent):
             ## TODO: values were trained with standardized q_values, so ensure
                 ## that the predictions have the same mean and standard deviation as
                 ## the current batch of q_values
-
-            raise NotImplementedError
-            values = TODO
+            # raise NotImplementedError
+            # values = TODO
+            # FIXME: Check if we need to do this:
+            # normalized_values = (values_normalized - np.mean(values_normalized)) / np.std(values_normalized)
+            values = unnormalize(values_normalized, np.mean(q_values), np.std(q_values)) 
 
             if self.gae_lambda is not None:
                 ## append a dummy T+1 value for simpler recursive calculation
@@ -125,7 +132,13 @@ class PGAgent(BaseAgent):
                         ## 0 otherwise.
                     ## HINT 2: self.gae_lambda is the lambda value in the
                         ## GAE formula
-                    raise NotImplementedError
+                    # raise NotImplementedError
+                    # AπGAE(st,at) = δt + γλAπGAE(st+1,at+1)
+                    if terminals[i]:
+                        advantages[i] = rewards[i] - values[i]
+                    else:
+                        advantages[i] = rewards[i] + self.gamma * values[i + 1] - values[i] + self.gamma * self.gae_lambda * advantages[i + 1]
+                        # FIXME: I dont understand this. Which formula is this?
 
                 # remove dummy advantage
                 advantages = advantages[:-1]
@@ -133,7 +146,7 @@ class PGAgent(BaseAgent):
             else:
                 ## TODO: compute advantage estimates using q_values, and values as baselines
                 # raise NotImplementedError
-                advantages = TODO
+                advantages = q_values - values
 
         # Else, just set the advantage to [Q]
         else:
@@ -144,8 +157,8 @@ class PGAgent(BaseAgent):
             ## TODO: standardize the advantages to have a mean of zero
             ## and a standard deviation of one
 
-            raise NotImplementedError
-            advantages = TODO
+            # raise NotImplementedError
+            advantages = normalize(advantages, np.mean(advantages), np.std(advantages))
 
         return advantages
 
@@ -169,12 +182,26 @@ class PGAgent(BaseAgent):
             Input: list of rewards {r_0, r_1, ..., r_t', ... r_T} from a single rollout of length T
 
             Output: array where each index t contains sum_{t'=0}^T gamma^t' r_{t'}
-        """
+        """ 
 
         # TODO: create discounted_returns
-        raise NotImplementedError
-
+        # raise NotImplementedError
+        discounted_returns = np.zeros(len(rewards))
+        for i in range(len(rewards)):
+            discounted_returns[i] = sum([self.gamma ** t * rewards[t] for t in range(i, len(rewards))])
+        # t_dash = np.arange(len(rewards))
+        # rew = np.asarray(rewards)
+        # discounted_returns = np.sum(rew * (self.gamma ** t_dash)) #TODO: Check indexing and dimensions
         return discounted_returns
+
+        # rew = np.asarray(rewards)[::-1]
+        # discounts = np.power(self.gamma, np.arange(len(rewards)))
+        # discounted_returns = np.zeros_like(rewards)
+        
+        # for i in range(len(rewards)):
+        #     discounted_returns[i] = np.dot(rew[i:], discounts[:len(rewards)-i])
+        
+        # return discounted_returns[::-1]
 
     def _discounted_cumsum(self, rewards):
         """
@@ -186,6 +213,14 @@ class PGAgent(BaseAgent):
         # TODO: create `discounted_cumsums`
         # HINT: it is possible to write a vectorized solution, but a solution
             # using a for loop is also fine
-        raise NotImplementedError
-
+        # raise NotImplementedError
+        discounted_cumsums = np.zeros(len(rewards))
+        for i in range(len(rewards)):
+            # discounted_cumsums[i] = sum([self.gamma ** (t - i) * rewards[t] for t in range(i, len(rewards))])
+            t_dash = np.arange(i, len(rewards))
+            rew = np.asarray(rewards[i:])
+            discounted_cumsums[i] = np.sum(rew * (self.gamma ** (t_dash - i))) #TODO: Check indexing and dimensions
+            # t_dash = np.arange(len(rewards)-i)
+            # rew = np.asarray(rewards[i:])
+            # discounted_cumsums[i] = np.sum(rew * (self.gamma ** t_dash)[:, np.newaxis], axis=0)
         return discounted_cumsums

@@ -9,4 +9,11 @@ hw1/run_logs/*
 hw1/rob831.egg-info/*
 *.png
 *.csv
-
+hw2/data/*
+hw2/rob831/__pycache__/*
+hw2/rob831/agents/__pycache__/*
+hw2/rob831/infrastructure/__pycache__/*
+hw2/rob831/policies/__pycache__/*
+hw2/rob831/scripts/__pycache__/*
+hw2/run_logs/*
+hw2/rob831.egg-info/*

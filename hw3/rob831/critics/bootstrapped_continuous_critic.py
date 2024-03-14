@@ -19,30 +19,29 @@ class BootstrappedContinuousCritic(nn.Module, BaseCritic):
         Note: batch self.size /n/ is defined at runtime.
         is None
     """
+
     def __init__(self, hparams):
         super().__init__()
-        self.ob_dim = hparams['ob_dim']
-        self.ac_dim = hparams['ac_dim']
-        self.discrete = hparams['discrete']
-        self.size = hparams['size']
-        self.n_layers = hparams['n_layers']
-        self.learning_rate = hparams['learning_rate']
+        self.ob_dim = hparams["ob_dim"]
+        self.ac_dim = hparams["ac_dim"]
+        self.discrete = hparams["discrete"]
+        self.size = hparams["size"]
+        self.n_layers = hparams["n_layers"]
+        self.learning_rate = hparams["learning_rate"]
 
         # critic parameters
-        self.num_target_updates = hparams['num_target_updates']
-        self.num_grad_steps_per_target_update = hparams['num_grad_steps_per_target_update']
-        self.gamma = hparams['gamma']
+        self.num_target_updates = hparams["num_target_updates"]
+        self.num_grad_steps_per_target_update = hparams[
+            "num_grad_steps_per_target_update"
+        ]
+        self.gamma = hparams["gamma"]
         self.critic_network = ptu.build_mlp(
-            self.ob_dim,
-            1,
-            n_layers=self.n_layers,
-            size=self.size,
+            self.ob_dim, 1, n_layers=self.n_layers, size=self.size
         )
         self.critic_network.to(ptu.device)
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(
-            self.critic_network.parameters(),
-            self.learning_rate,
+            self.critic_network.parameters(), self.learning_rate
         )
 
     def forward(self, obs):
@@ -86,5 +85,32 @@ class BootstrappedContinuousCritic(nn.Module, BaseCritic):
         #       to 0) when a terminal state is reached
         # HINT: make sure to squeeze the output of the critic_network to ensure
         #       that its dimensions match the reward
+        ob_no = ptu.from_numpy(ob_no)
+        ac_na = ptu.from_numpy(ac_na)
+        next_ob_no = ptu.from_numpy(next_ob_no)
+        reward_n = ptu.from_numpy(reward_n)
+        terminal_n = ptu.from_numpy(terminal_n)
+
+        # for _ in range(self.num_target_updates):
+        #     for _ in range(self.num_grad_steps_per_target_update):
+        #         with torch.no_grad():
+        #             V_s_prime = self.critic_network(next_ob_no) * (1 - terminal_n)
+        #             target_values = reward_n + self.gamma * V_s_prime
+        #         self.optimizer.zero_grad()
+        #         predictions = self.critic_network(ob_no).squeeze(1)
+        #         loss = self.loss(predictions, target_values)
+        #         loss.backward()
+        #         self.optimizer.step()
+
+        for _ in range(self.num_target_updates):
+            V_s_prime = self.critic_network(next_ob_no).squeeze() * (1 - terminal_n)
+            target_values = reward_n + self.gamma * V_s_prime.detach()
+            self.optimizer.zero_grad()
+            loses = 0
+            for _ in range(self.num_grad_steps_per_target_update):
+                loss = self.loss(self.critic_network(ob_no).squeeze(), target_values)
+                loses += loss
+            loss.backward()
+            self.optimizer.step()
 
         return loss.item()
